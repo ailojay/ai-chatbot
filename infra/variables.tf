@@ -27,3 +27,8 @@ variable "github_repo" {
   type        = string
   default     = "https://github.com/ailojay/ai-chatbot.git"
 }
+
+variable "my_ip" {
+  description = "Your IP address for SSH access"
+  type        = string
+}
