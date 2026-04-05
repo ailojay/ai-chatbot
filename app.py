@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify, render_template, session, redirect, u
 import os
 import uuid
 import json
+import requests as http_requests
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', str(uuid.uuid4()))
@@ -14,6 +15,8 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', str(uuid.uuid4()))
 client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
 BUSINESS_FILE = 'business_info.json'
+TELEGRAM_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_API = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}'
 
 chat_sessions = {}
 
@@ -34,6 +37,8 @@ def build_system_prompt(info):
     return f"""
 You are a customer service assistant for {info['name']}.
 You are NOT an AI. Stay in character always. Never mention Google or Gemini.
+You are friendly, warm, and helpful. Keep answers short and to the point. If unsure, suggest they call.
+Dont use any terms of endearment or emojis. Be professional but approachable.
 
 Location: {info['location']}
 Hours: {info['hours']}
@@ -49,12 +54,7 @@ Your job: Answer questions about menu, hours, location, reservations.
 Be friendly, warm, and keep answers short. If unsure, suggest they call.
 """
 
-def get_chat_session():
-    if 'session_id' not in session:
-        session['session_id'] = str(uuid.uuid4())
-
-    session_id = session['session_id']
-
+def get_chat_session(session_id):
     if session_id not in chat_sessions:
         info = load_business_info()
         system_prompt = build_system_prompt(info)
@@ -64,8 +64,19 @@ def get_chat_session():
                 system_instruction=system_prompt
             )
         )
-
     return chat_sessions[session_id]
+
+def send_telegram_message(chat_id, text):
+    http_requests.post(f'{TELEGRAM_API}/sendMessage', json={
+        'chat_id': chat_id,
+        'text': text
+    })
+
+def send_telegram_typing(chat_id):
+    http_requests.post(f'{TELEGRAM_API}/sendChatAction', json={
+        'chat_id': chat_id,
+        'action': 'typing'
+    })
 
 @app.route('/')
 def index():
@@ -74,9 +85,49 @@ def index():
 @app.route('/chat', methods=['POST'])
 def chat():
     user_message = request.json.get('message')
-    chat = get_chat_session()
+    if 'session_id' not in session:
+        session['session_id'] = str(uuid.uuid4())
+    chat = get_chat_session(session['session_id'])
     response = chat.send_message(user_message)
     return jsonify({'response': response.text})
+
+@app.route('/webhook', methods=['POST'])
+def telegram_webhook():
+    data = request.json
+
+    if 'message' not in data:
+        return jsonify({'ok': True})
+
+    message = data['message']
+    chat_id = message['chat']['id']
+    user_id = str(message['from']['id'])
+    text = message.get('text', '')
+
+    if not text:
+        return jsonify({'ok': True})
+
+    if text == '/start':
+        send_telegram_message(chat_id,
+            f"Hello! I'm Titi, your assistant at Mama Titi's Restaurant. "
+            f"Ask me anything about our menu, hours, location, or reservations!"
+        )
+        return jsonify({'ok': True})
+
+    if text == '/clear':
+        session_key = f'telegram_{user_id}'
+        if session_key in chat_sessions:
+            del chat_sessions[session_key]
+        send_telegram_message(chat_id, 'Conversation cleared. How can I help you?')
+        return jsonify({'ok': True})
+
+    send_telegram_typing(chat_id)
+
+    session_key = f'telegram_{user_id}'
+    chat = get_chat_session(session_key)
+    response = chat.send_message(text)
+
+    send_telegram_message(chat_id, response.text)
+    return jsonify({'ok': True})
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_login():
@@ -109,7 +160,7 @@ def admin_panel():
             json.dump(info, f)
 
         chat_sessions.clear()
-        message = 'Business information updated successfully.'
+        message = 'Business information updated. Both web and Telegram chatbot will use the new information.'
 
     return render_template('admin_panel.html', info=info, message=message)
 
