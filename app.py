@@ -59,7 +59,7 @@ def get_chat_session(session_id):
         info = load_business_info()
         system_prompt = build_system_prompt(info)
         chat_sessions[session_id] = client.chats.create(
-            model='gemini-2.5-flash',
+            model='gemini-2.5-flash-lite',
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt
             )
