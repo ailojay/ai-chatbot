@@ -56,3 +56,6 @@ __pycache__/
 .terraform/
 *.tfstate
 *.tfstate.*
+build/
+lambda.zip
+__pycache__/

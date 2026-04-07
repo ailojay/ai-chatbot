@@ -1,0 +1,22 @@
+name: Deploy Serverless
+
+on:
+  push:
+    branches:
+      - serverless-migration
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Deploy Lambda
+        run: |
+          cd infra/serverless
+          terraform init
+          terraform apply -auto-approve
