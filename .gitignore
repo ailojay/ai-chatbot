@@ -1,0 +1,58 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment variables - NEVER commit this
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# pytest
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Terraform
+infra/.terraform/
+infra/.terraform.lock.hcl
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+infra/terraform.tfvars
+
+business_info.json
+venv/
+__pycache__/
+*.pyc
+.env
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfstate
+*.tfstate.*

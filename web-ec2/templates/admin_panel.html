@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Panel</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; }
+    h2 { color: #333; }
+    label { display: block; margin-top: 14px; font-weight: bold; font-size: 13px; color: #555; }
+    input[type=text], textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-top: 4px; }
+    textarea { height: 120px; resize: vertical; }
+    button { margin-top: 20px; padding: 12px 30px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+    button:hover { background: #1e7e34; }
+    .logout { float: right; color: #dc3545; text-decoration: none; font-size: 13px; }
+    .success { color: green; margin-top: 10px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <a href="/admin/logout" class="logout">Logout</a>
+  <h2>Update Business Information</h2>
+  {% if message %}<p class="success">{{ message }}</p>{% endif %}
+  <form method="POST">
+    <label>Business Name</label>
+    <input type="text" name="name" value="{{ info.name }}" required />
+    <label>Location</label>
+    <input type="text" name="location" value="{{ info.location }}" required />
+    <label>Opening Hours</label>
+    <input type="text" name="hours" value="{{ info.hours }}" required />
+    <label>Phone Number</label>
+    <input type="text" name="phone" value="{{ info.phone }}" required />
+    <label>Menu (one item per line)</label>
+    <textarea name="menu">{{ info.menu }}</textarea>
+    <label>Policies (one per line)</label>
+    <textarea name="policies">{{ info.policies }}</textarea>
+    <button type="submit">Save Changes</button>
+  </form>
+</body>
+</html>
