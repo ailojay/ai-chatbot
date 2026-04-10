@@ -15,6 +15,8 @@ __pycache__/
 # Distribution / packaging
 dist/
 build/
+package/
+*.zip
 *.egg-info/
 
 # Logs

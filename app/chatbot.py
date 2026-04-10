@@ -1,64 +1,121 @@
+import boto3
+import time
 import os
-import json
-from google import genai
-from google.genai import types
 
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-
-def load_business_info():
-    return {
-        "name": "Mama Titi's Restaurant",
-        "location": "14 Admiralty Way, Lekki Phase 1, Lagos",
-        "hours": "Monday to Saturday 11am to 10pm, Sunday 12pm to 8pm",
-        "phone": "0801 234 5678",
-        "menu": """Jollof Rice with chicken: 2500 naira
-Pounded Yam and Egusi Soup: 3000 naira
-Fried Rice with beef: 2500 naira
-Peppered Snail: 4000 naira
-Chapman cocktail: 1500 naira""",
-        "policies": """Reservations by calling or WhatsApp
-Delivery available within 5km radius
-No refunds once food is prepared"""
-    }
+# DynamoDB setup
+dynamodb = boto3.resource("dynamodb")
+table = dynamodb.Table("chat-sessions")
 
 
-def build_prompt(info):
-    return f"""
-You are a customer service assistant for {info['name']}.
-You are NOT an AI. Stay in character always.
+# -----------------------------
+# SESSION MEMORY FUNCTIONS
+# -----------------------------
 
-Be friendly, warm, and concise.
-Do not mention Gemini, Google, or AI.
+def load_business_info(session_id):
+    if not session_id:
+        return []
 
-Location: {info['location']}
-Hours: {info['hours']}
-Phone: {info['phone']}
+    res = table.get_item(Key={"session_id": session_id})
+    return res.get("Item", {}).get("messages", [])
+
+
+def save_business_info(session_id, messages):
+    if not session_id:
+        return
+
+    table.put_item(Item={
+        "session_id": session_id,
+        "messages": messages,
+        "updated_at": int(time.time())
+    })
+
+
+# -----------------------------
+# GLOBAL CONFIG (ADMIN DATA)
+# -----------------------------
+
+def get_business_config():
+    res = table.get_item(Key={"session_id": "global_config"})
+    return res.get("Item", {})
+
+
+# -----------------------------
+# GEMINI CALL (YOU ALREADY HAVE THIS)
+# -----------------------------
+
+def call_gemini(history):
+    """
+    This function should already exist in your code.
+    It sends `history` to Gemini and returns the reply text.
+    """
+    # Example placeholder:
+    raise NotImplementedError("Replace with your Gemini API call")
+
+
+# -----------------------------
+# MAIN CHAT FUNCTION
+# -----------------------------
+
+def generate_response(message, session_id=None):
+    # Load conversation history
+    history = load_business_info(session_id) or []
+
+    # Load business config (ADMIN DATA)
+    business = get_business_config()
+
+    # Build system prompt (THIS FIXES MENU ISSUE)
+    system_prompt = f"""
+You are a helpful assistant for a restaurant.
+
+Business Name: {business.get('name', '')}
+Location: {business.get('location', '')}
+Hours: {business.get('hours', '')}
+Phone: {business.get('phone', '')}
 
 Menu:
-{info['menu']}
+{business.get('menu', '')}
 
 Policies:
-{info['policies']}
+{business.get('policies', '')}
+
+Instructions:
+- Answer questions using the business information above
+- If asked about the menu, list the menu items clearly
+- Be friendly and helpful
 """
 
+    # Inject system prompt ONLY once
+    if not any(msg.get("role") == "system" for msg in history):
+        history.insert(0, {
+            "role": "system",
+            "content": system_prompt
+        })
 
-def generate_response(user_message, history=None):
-    info = load_business_info()
-    system_prompt = build_prompt(info)
+    # Add user message
+    history.append({
+        "role": "user",
+        "content": message
+    })
 
-    messages = []
+    # Call Gemini safely (QUOTA HANDLING)
+    try:
+        reply = call_gemini(history)
 
-    if history:
-        messages.extend(history)
+    except Exception as e:
+        error_str = str(e)
 
-    messages.append({"role": "user", "content": user_message})
+        if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+            reply = "I'm currently busy due to high demand. Please try again shortly."
+        else:
+            reply = "Something went wrong. Please try again."
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
-        contents=user_message,
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt
-        )
-    )
+    # Save assistant reply
+    history.append({
+        "role": "assistant",
+        "content": reply
+    })
 
-    return response.text
+    # Persist session
+    save_business_info(session_id, history)
+
+    return reply

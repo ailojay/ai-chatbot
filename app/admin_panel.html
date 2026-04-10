@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Panel</title>
+  <style>
+    body { font-family: Arial; max-width: 700px; margin: 40px auto; }
+    input, textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+    }
+    textarea { height: 120px; }
+    .success { color: green; }
+  </style>
+</head>
+<body>
+
+<button onclick="logout()">Logout</button>
+
+<h2>Update Business Info</h2>
+
+<p id="msg" class="success"></p>
+
+<input id="name" placeholder="Business Name">
+<input id="location" placeholder="Location">
+<input id="hours" placeholder="Opening Hours">
+<input id="phone" placeholder="Phone">
+<textarea id="menu" placeholder="Menu (one per line)"></textarea>
+<textarea id="policies" placeholder="Policies (one per line)"></textarea>
+
+<button onclick="save()">Save</button>
+
+<script>
+const API = "https://8b1cdlmrng.execute-api.us-east-1.amazonaws.com/admin";
+
+// 🔒 protect page
+if (localStorage.getItem("auth") !== "true") {
+  window.location.href = "admin_login.html";
+}
+
+// Load existing data
+async function load() {
+  const res = await fetch(API);
+  const data = await res.json();
+
+  document.getElementById("name").value = data.name || "";
+  document.getElementById("location").value = data.location || "";
+  document.getElementById("hours").value = data.hours || "";
+  document.getElementById("phone").value = data.phone || "";
+  document.getElementById("menu").value = data.menu || "";
+  document.getElementById("policies").value = data.policies || "";
+}
+
+// Save data
+async function save() {
+  const payload = {
+    name: document.getElementById("name").value,
+    location: document.getElementById("location").value,
+    hours: document.getElementById("hours").value,
+    phone: document.getElementById("phone").value,
+    menu: document.getElementById("menu").value,
+    policies: document.getElementById("policies").value
+  };
+
+  await fetch(API, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload)
+  });
+
+  document.getElementById("msg").innerText = "Saved successfully";
+}
+
+// Logout
+function logout() {
+  localStorage.removeItem("auth");
+  window.location.href = "admin_login.html";
+}
+
+load();
+</script>
+
+</body>
+</html>
